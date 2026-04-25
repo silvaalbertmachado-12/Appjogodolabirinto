@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maze Master Pro - 20 Níveis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:        #060a14;
+            --surface:   #0d1526;
+            --wall:      #0a1020;
+            --path:      #0d1f3c;
+            --accent:    #00f0ff;
+            --player:    #ff3f6c;
+            --finish:    #00ff99;
+            --gold:      #ffd700;
+            --text:      #c8d8f0;
+            --glow-a:    0 0 8px #00f0ff88;
+            --glow-p:    0 0 12px #ff3f6c99;
+            --glow-f:    0 0 16px #00ff9988;
+        } 
+
+        * { box-sizing: border-box; margin: 0; padding: 0; } 
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 16px 8px 100px;
+            background-image:
+                radial-gradient(ellipse 60% 40% at 50% 0%, #00f0ff10 0%, transparent 70%),
+                radial-gradient(ellipse 40% 30% at 80% 100%, #ff3f6c0a 0%, transparent 60%);
+        } 
+
+        header { text-align: center; margin-bottom: 14px; } 
+
+        h1 {
+            font-family: 'Orbitron', monospace;
+            font-weight: 900;
+            font-size: clamp(1.4rem, 5vw, 2.4rem);
+            letter-spacing: 4px;
+            color: var(--accent);
+            text-shadow: 0 0 18px #00f0ffaa;
+            line-height: 1;
+        } 
+
+        .subtitle {
+            font-size: 0.7rem;
+            letter-spacing: 3px;
+            color: #4a6a8a;
+            margin-top: 4px;
+            text-transform: uppercase;
+        } 
+
+        .hud {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            width: 100%;
+            max-width: 560px;
+            justify-content: space-between;
+        } 
+
+        .hud-box {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid #1e3a5f;
+            border-radius: 10px;
+            padding: 6px 10px;
+            text-align: center;
+        } 
+
+        .hud-label { font-size: 0.55rem; letter-spacing: 2px; color: #4a6a8a; text-transform: uppercase; } 
+
+        .hud-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-shadow: var(--glow-a);
+        } 
+
+        #timer-val.urgent { color: var(--player); animation: blink .4s infinite; } 
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} } 
+
+        #canvas-wrap {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 0 30px #00f0ff22;
+            border: 2px solid #1e3a5f;
+        } 
+
+        canvas { display: block; background: var(--wall); } 
+
+        #overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(6,10,20,0.9);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        } 
+
+        #overlay.show { display: flex; } 
+
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--accent);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            max-width: 380px;
+            width: 85%;
+            animation: popIn .3s cubic-bezier(.34,1.56,.64,1);
+        } 
+
+        @keyframes popIn { from { transform: scale(.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .modal h2 { font-family: 'Orbitron', monospace; color: var(--accent); margin-bottom: 15px; } 
+        .medal { font-size: 3.5rem; display: block; margin-bottom: 10px; } 
+        .score-big { font-family: 'Orbitron', monospace; font-size: 2.2rem; color: var(--gold); display: block; margin: 15px 0; } 
+
+        .btn {
+            padding: 12px 28px;
+            font-family: 'Orbitron', monospace;
+            background: transparent;
+            color: var(--accent);
+            border: 2px solid var(--accent);
+            border-radius: 8px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: 0.3s;
+        } 
+
+        .btn:hover { background: var(--accent); color: var(--bg); box-shadow: 0 0 20px var(--accent); } 
+
+        #dpad {
+            position: fixed;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            grid-template-columns: repeat(3, 55px);
+            grid-template-rows: repeat(3, 55px);
+            gap: 5px;
+        } 
+
+        .dpad-btn {
+            background: rgba(13,21,38,0.9);
+            border: 1px solid #1e3a5f;
+            border-radius: 10px;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            touch-action: manipulation;
+        }
+
+        @media (pointer: coarse) { #dpad { display: grid; } }
+    </style>
+</head>
+<body> 
+
+<header>
+    <h1>MAZE MASTER PRO</h1>
+    <p class="subtitle">Desafio Épico: 20 Níveis</p>
+</header> 
+
+<div class="hud">
+    <div class="hud-box">
+        <div class="hud-label">Nível</div>
+        <div class="hud-value"><span id="lvl-display">1</span>/20</div>
+    </div>
+    <div class="hud-box">
+        <div class="hud-label">Pontos</div>
+        <div class="hud-value" id="score-display">0</div>
+    </div>
+    <div class="hud-box">
+        <div class="hud-label">Tempo</div>
+        <div class="hud-value" id="timer-val">--</div>
+    </div>
+</div> 
+
+<div id="canvas-wrap">
+    <canvas id="mazeCanvas"></canvas>
+</div> 
+
+<div id="overlay">
+    <div class="modal">
+        <div id="modal-content"></div>
+        <button class="btn" id="modal-btn" onclick="nextStep()">Próximo Nível</button>
+    </div>
+</div> 
+
+<div id="dpad">
+    <div></div><div class="dpad-btn" id="dpad-up">▲</div><div></div>
+    <div class="dpad-btn" id="dpad-left">◀</div><div></div><div class="dpad-btn" id="dpad-right">▶</div>
+    <div></div><div class="dpad-btn" id="dpad-down">▼</div><div></div>
+</div> 
+
+<script>
+    const canvas = document.getElementById('mazeCanvas');
+    const ctx = canvas.getContext('2d');
+    const lvlDisplay = document.getElementById('lvl-display');
+    const scoreEl = document.getElementById('score-display');
+    const timerEl = document.getElementById('timer-val');
+    const overlay = document.getElementById('overlay');
+    const modalContent = document.getElementById('modal-content');
+    const modalBtn = document.getElementById('modal-btn'); 
+
+    let level = 1, score = 0;
+    let maze, player, finish, trail;
+    let cellSize, cols, rows;
+    let timerSec, timerInterval;
+    let pulseAngle = 0, animFrame; 
+
+    function initLevel() {
+        // Crescimento de dificuldade para 20 níveis
+        const sizeBase = 9 + (level * 2); 
+        cols = sizeBase % 2 === 0 ? sizeBase + 1 : sizeBase;
+        rows = cols; 
+
+        const maxPx = Math.min(window.innerWidth - 40, 500);
+        cellSize = Math.floor(maxPx / cols);
+        canvas.width = cols * cellSize;
+        canvas.height = rows * cellSize; 
+
+        maze = Array.from({length: rows}, () => new Array(cols).fill(1)); 
+        generateMaze(0, 0); 
+
+        // Posicionamento: Início (0,0) -> Fim (último ponto possível)
+        player = {x: 0, y: 0};
+        finish = {x: cols - 1, y: rows - 1};
+        maze[0][0] = 0;
+        maze[rows-1][cols-1] = 0;
+
+        trail = new Set();
+        trail.add(`0,0`); 
+
+        // Tempo fica mais apertado nos níveis altos
+        timerSec = Math.max(15, 50 + (10 - level) * 4);
+        startTimer(); 
+        if (animFrame) cancelAnimationFrame(animFrame);
+        animate();
+    } 
+
+    function generateMaze(r, c) {
+        maze[r][c] = 0;
+        const stack = [[r, c]]; 
+        while (stack.length > 0) {
+            const [currR, currC] = stack[stack.length - 1];
+            const dirs = [[0,2],[0,-2],[2,0],[-2,0]].sort(() => Math.random() - 0.5);
+            let moved = false; 
+            for (const [dr, dc] of dirs) {
+                const nr = currR + dr, nc = currC + dc;
+                if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && maze[nr][nc] === 1) {
+                    maze[currR + dr/2][currC + dc/2] = 0;
+                    maze[nr][nc] = 0;
+                    stack.push([nr, nc]);
+                    moved = true;
+                    break;
+                }
+            }
+            if (!moved) stack.pop();
+        }
+    } 
+
+    function startTimer() {
+        clearInterval(timerInterval);
+        timerEl.classList.remove('urgent');
+        updateTimerDisplay();
+        timerInterval = setInterval(() => {
+            timerSec--;
+            updateTimerDisplay();
+            if (timerSec <= 8) timerEl.classList.add('urgent');
+            if (timerSec <= 0) {
+                clearInterval(timerInterval);
+                showModal(`<h2>TEMPO ESGOTADO!</h2><p>Você travou no nível ${level}.</p>`);
+                modalBtn.textContent = 'Reiniciar Nível';
+                level--; // Compensação para o nextStep() subir de volta
+            }
+        }, 1000);
+    } 
+
+    function updateTimerDisplay() { timerEl.textContent = timerSec + 's'; } 
+
+    function animate() {
+        pulseAngle += 0.08;
+        draw();
+        animFrame = requestAnimationFrame(animate);
+    } 
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height); 
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const x = c * cellSize, y = r * cellSize;
+                if (maze[r][c] === 1) {
+                    ctx.fillStyle = '#0a1428';
+                    ctx.fillRect(x, y, cellSize, cellSize);
+                } else {
+                    ctx.fillStyle = trail.has(`${c},${r}`) ? '#0d2545' : '#0b1830';
+                    ctx.fillRect(x, y, cellSize, cellSize);
+                }
+            }
+        } 
+
+        // Saída (Estrela)
+        const pulse = 0.7 + 0.3 * Math.sin(pulseAngle);
+        ctx.shadowBlur = 15 * pulse;
+        ctx.shadowColor = '#00ff99';
+        ctx.fillStyle = `rgba(0,255,153,${pulse})`;
+        ctx.font = `${cellSize*0.6}px Orbitron`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('★', finish.x * cellSize + cellSize/2, finish.y * cellSize + cellSize/2); 
+
+        // Jogador (Neon Drop)
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#ff3f6c';
+        ctx.fillStyle = '#ff3f6c';
+        ctx.beginPath();
+        ctx.arc(player.x * cellSize + cellSize/2, player.y * cellSize + cellSize/2, cellSize*0.35, 0, Math.PI*2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    } 
+
+    function movePlayer(dx, dy) {
+        const nx = player.x + dx, ny = player.y + dy;
+        if (nx >= 0 && nx < cols && ny >= 0 && ny < rows && maze[ny][nx] === 0) {
+            player.x = nx; player.y = ny;
+            trail.add(`${nx},${ny}`);
+            if (player.x === finish.x && player.y === finish.y) winLevel();
+        }
+    } 
+
+    function winLevel() {
+        clearInterval(timerInterval);
+        const bonus = timerSec * 10;
+        score += (level * 200) + bonus;
+        scoreEl.textContent = score; 
+
+        if (level < 20) {
+            showModal(`<h2>NÍVEL ${level} OK!</h2><p>Bônus de Velocidade: +${bonus}</p>`);
+            modalBtn.textContent = 'Subir de Nível';
+        } else {
+            const medal = score > 15000 ? ['🥇','LENDA DO NEON','#ffd700'] : ['🥈','MAZE RUNNER','#c0c0c0'];
+            modalContent.innerHTML = `<span class="medal">${medal[0]}</span><h2>${medal[1]}</h2><p>Você dominou os 20 níveis!</p><span class="score-big">${score} PTS</span>`;
+            modalBtn.textContent = 'Reiniciar Tudo';
+        }
+    } 
+
+    function showModal(html) { modalContent.innerHTML = html; overlay.classList.add('show'); } 
+
+    function nextStep() {
+        overlay.classList.remove('show');
+        if (level >= 20) { level = 1; score = 0; scoreEl.textContent = 0; } 
+        else { level++; }
+        lvlDisplay.textContent = level;
+        initLevel();
+    } 
+
+    // Controles
+    window.addEventListener('keydown', e => {
+        if (overlay.classList.contains('show')) return;
+        if (['ArrowUp','w','W'].includes(e.key)) movePlayer(0,-1);
+        if (['ArrowDown','s','S'].includes(e.key)) movePlayer(0,1);
+        if (['ArrowLeft','a','A'].includes(e.key)) movePlayer(-1,0);
+        if (['ArrowRight','d','D'].includes(e.key)) movePlayer(1,0);
+    }); 
+
+    const dpad = {'dpad-up':[0,-1],'dpad-down':[0,1],'dpad-left':[-1,0],'dpad-right':[1,0]};
+    Object.entries(dpad).forEach(([id, [dx,dy]]) => {
+        const el = document.getElementById(id);
+        el.addEventListener('touchstart', e => { e.preventDefault(); movePlayer(dx,dy); });
+        el.addEventListener('click', () => movePlayer(dx,dy));
+    }); 
+
+    initLevel();
+</script>
+</body>
+</html>
